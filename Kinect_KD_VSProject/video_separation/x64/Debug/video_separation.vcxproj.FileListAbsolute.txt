@@ -1,7 +1,0 @@
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\video_separation.vcxproj.CopyComplete
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\video_separation.exe
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\depthengine_2_0.dll
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\k4a.dll
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\k4arecord.dll
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\k4a.pdb
-C:\Users\zenob\Desktop\Kinect_KD_VSProject\video_separation\x64\Debug\k4arecord.pdb
