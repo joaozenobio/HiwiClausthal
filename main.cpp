@@ -180,7 +180,7 @@ cv::Mat get_mat(k4a_image_t src, bool deep_copy = true)
         break;
     }
     default:
-        printf("Failed to convert this format.");
+        printf("Failed to convert this format\n");
         break;
     }
 
@@ -219,95 +219,142 @@ int main(int argc, char** argv) {
     transformation = k4a_transformation_create(&calibration);
 
     k4a_capture_t capture = NULL;
+    k4a_image_t depth_image = NULL;
+    k4a_image_t color_image = NULL;
+    k4a_image_t ir_image = NULL;
     k4a_stream_result_t stream_result;
     stream_result = k4a_playback_get_next_capture(playback, &capture);
-    if (stream_result != K4A_STREAM_RESULT_SUCCEEDED || capture == NULL)
+    if (stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
     {
         printf("Failed to fetch frame\n");
         return -1;
     }
+    while (stream_result != K4A_STREAM_RESULT_EOF)
+    {   
+        depth_image = k4a_capture_get_depth_image(capture);
+        if (depth_image == 0)
+        {
+            printf("Failed to get depth image from capture\n");
+        }
 
-    k4a_image_t depth_image = NULL;
-    depth_image = k4a_capture_get_depth_image(capture);
-    if (depth_image == 0)
-    {
-        printf("Failed to get depth image from capture\n");
-        return -1;
-    }
+        color_image = k4a_capture_get_color_image(capture);
+        if (color_image == 0)
+        {
+            printf("Failed to get color image from capture\n");
+        }
 
-    k4a_image_t color_image = NULL;
-    color_image = k4a_capture_get_color_image(capture);
-    if (color_image == 0)
-    {
-        printf("Failed to get color image from capture\n");
-        return -1;
-    }
+        ir_image = k4a_capture_get_ir_image(capture);
+        if (ir_image == 0)
+        {
+            printf("Failed to get ir image from capture\n");
+        }
+        if (depth_image && color_image && ir_image)
+        {
+            int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+            int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+            k4a_image_t transformed_depth_image = NULL;
+            if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+                color_image_width_pixels,
+                color_image_height_pixels,
+                color_image_width_pixels * (int)sizeof(uint16_t),
+                &transformed_depth_image))
+            {
+                printf("Failed to create transformed depth image\n");
+                return -1;
+            }
+            if (K4A_RESULT_SUCCEEDED !=
+                k4a_transformation_depth_image_to_color_camera(transformation, depth_image, transformed_depth_image))
+            {
+                printf("Failed to compute transformed depth image\n");
+                return -1;
+            }
 
-    k4a_image_t ir_image = NULL;
-    ir_image = k4a_capture_get_ir_image(capture);
-    if (ir_image == 0)
-    {
-        printf("Failed to get ir image from capture\n");
-        return -1;
-    }
+            k4a_image_t xy_table = NULL;
+            k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+                color_image_width_pixels,
+                color_image_height_pixels,
+                color_image_width_pixels * (int)sizeof(k4a_float2_t),
+                &xy_table);
+            create_xy_table(&calibration, xy_table);
 
-    int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
-    int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
-    k4a_image_t transformed_depth_image = NULL;
-    if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
-        color_image_width_pixels,
-        color_image_height_pixels,
-        color_image_width_pixels * (int)sizeof(uint16_t),
-        &transformed_depth_image))
-    {
-        printf("Failed to create transformed depth image\n");
-        return -1;
-    }
-    if (K4A_RESULT_SUCCEEDED !=
-        k4a_transformation_depth_image_to_color_camera(transformation, depth_image, transformed_depth_image))
-    {
-        printf("Failed to compute transformed depth image\n");
-        return -1;
-    }
+            k4a_image_t point_cloud = NULL;
+            k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+                color_image_width_pixels,
+                color_image_height_pixels,
+                color_image_width_pixels * (int)sizeof(k4a_float3_t),
+                &point_cloud);
+            int point_count = 0;
+            generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count);
+            int depth_image_timestamp = (int)k4a_image_get_device_timestamp_usec(depth_image);
+            write_point_cloud((depth_image_output_directory + std::to_string(depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
+            printf("%d\n", depth_image_timestamp);
+            if (depth_image != NULL)
+            {
+                k4a_image_release(depth_image);
+                depth_image = NULL;
+            }
+            if (transformed_depth_image != NULL)
+            {
+                k4a_image_release(transformed_depth_image);
+                transformed_depth_image = NULL;
+            }
+            if (xy_table != NULL)
+            {
+                k4a_image_release(xy_table);
+                xy_table = NULL;
+            }
+            if (point_cloud != NULL)
+            {
+                k4a_image_release(point_cloud);
+                point_cloud = NULL;
+            }
 
-    k4a_image_t xy_table = NULL;
-    k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-        color_image_width_pixels,
-        color_image_height_pixels,
-        color_image_width_pixels * (int)sizeof(k4a_float2_t),
-        &xy_table);
-    create_xy_table(&calibration, xy_table);
+            int color_image_timestamp = (int)k4a_image_get_device_timestamp_usec(color_image);
+            cv::Mat color_image_opencv = k4a_get_mat(color_image);
+            cv::imwrite((color_image_output_directory + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
+            if (color_image != NULL)
+            {
+                k4a_image_release(color_image);
+                color_image = NULL;
+            }
 
-    k4a_image_t point_cloud = NULL;
-    k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-        color_image_width_pixels,
-        color_image_height_pixels,
-        color_image_width_pixels * (int)sizeof(k4a_float3_t),
-        &point_cloud);
-    int point_count = 0;
-    generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count);
-    int depth_image_timestamp = (int)k4a_image_get_device_timestamp_usec(depth_image);
-    write_point_cloud((depth_image_output_directory + std::to_string(depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
-
-    int color_image_timestamp = (int)k4a_image_get_device_timestamp_usec(color_image);
-    cv::Mat color_image_opencv = k4a_get_mat(color_image);
-    cv::imwrite((color_image_output_directory + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
-
-    int ir_image_timestamp = (int)k4a_image_get_device_timestamp_usec(ir_image);
-    cv::Mat ir_image_opencv = k4a_get_mat(ir_image);
-    cv::imwrite((ir_image_output_directory + std::to_string(ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
-
-    if (playback != NULL)
-    {
-        k4a_playback_close(playback);
-    }
-    if (depth_image != NULL)
-    {
-        k4a_image_release(depth_image);
-    }
-    if (color_image != NULL)
-    {
-        k4a_image_release(color_image);
+            int ir_image_timestamp = (int)k4a_image_get_device_timestamp_usec(ir_image);
+            cv::Mat ir_image_opencv = k4a_get_mat(ir_image);
+            cv::imwrite((ir_image_output_directory + std::to_string(ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
+            if (ir_image != NULL)
+            {
+                k4a_image_release(ir_image);
+                ir_image = NULL;
+            }
+        }
+        else{
+            if (depth_image != NULL)
+            {
+                k4a_image_release(depth_image);
+                depth_image = NULL;
+            }
+            if (color_image != NULL)
+            {
+                k4a_image_release(color_image);
+                color_image = NULL;
+            }
+            if (ir_image != NULL)
+            {
+                k4a_image_release(ir_image);
+                ir_image = NULL;
+            }
+        }
+        if (capture != NULL)
+        {
+            k4a_capture_release(capture);
+            capture = NULL;
+        }
+        stream_result = k4a_playback_get_next_capture(playback, &capture);
+        if (stream_result == K4A_STREAM_RESULT_FAILED)
+        {
+            printf("Failed to fetch frame\n");
+            return -1;
+        }
     }
     if (capture != NULL)
     {
@@ -316,6 +363,10 @@ int main(int argc, char** argv) {
     if (transformation != NULL)
     {
         k4a_transformation_destroy(transformation);
+    }
+    if (playback != NULL)
+    {
+        k4a_playback_close(playback);
     }
 
     return 0;
