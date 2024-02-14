@@ -289,7 +289,6 @@ int main(int argc, char** argv) {
             generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count);
             int depth_image_timestamp = (int)k4a_image_get_device_timestamp_usec(depth_image);
             write_point_cloud((depth_image_output_directory + std::format("{:020}", depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
-            printf("%d\n", depth_image_timestamp);
             if (depth_image != NULL)
             {
                 k4a_image_release(depth_image);
@@ -310,7 +309,7 @@ int main(int argc, char** argv) {
                 k4a_image_release(point_cloud);
                 point_cloud = NULL;
             }
-            /*
+
             int color_image_timestamp = (int)k4a_image_get_device_timestamp_usec(color_image);
             cv::Mat color_image_opencv = k4a_get_mat(color_image);
             cv::imwrite((color_image_output_directory + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
@@ -329,7 +328,6 @@ int main(int argc, char** argv) {
                 k4a_image_release(ir_image);
                 ir_image = NULL;
             }
-            */
         }
         else{
             if (depth_image != NULL)
@@ -372,6 +370,8 @@ int main(int argc, char** argv) {
     {
         k4a_playback_close(playback);
     }
+
+    std::cout << input_file_name + " concluded.";
 
     return 0;
 }
