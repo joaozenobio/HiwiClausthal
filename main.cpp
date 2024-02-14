@@ -7,6 +7,8 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <iomanip>
+#include <format>
 
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
@@ -286,7 +288,7 @@ int main(int argc, char** argv) {
             int point_count = 0;
             generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count);
             int depth_image_timestamp = (int)k4a_image_get_device_timestamp_usec(depth_image);
-            write_point_cloud((depth_image_output_directory + std::to_string(depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
+            write_point_cloud((depth_image_output_directory + std::format("{:020}", depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
             printf("%d\n", depth_image_timestamp);
             if (depth_image != NULL)
             {
@@ -308,7 +310,7 @@ int main(int argc, char** argv) {
                 k4a_image_release(point_cloud);
                 point_cloud = NULL;
             }
-
+            /*
             int color_image_timestamp = (int)k4a_image_get_device_timestamp_usec(color_image);
             cv::Mat color_image_opencv = k4a_get_mat(color_image);
             cv::imwrite((color_image_output_directory + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
@@ -317,15 +319,17 @@ int main(int argc, char** argv) {
                 k4a_image_release(color_image);
                 color_image = NULL;
             }
+            
 
             int ir_image_timestamp = (int)k4a_image_get_device_timestamp_usec(ir_image);
             cv::Mat ir_image_opencv = k4a_get_mat(ir_image);
-            cv::imwrite((ir_image_output_directory + std::to_string(ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
+            cv::imwrite((ir_image_output_directory + std::format("{:020}", ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
             if (ir_image != NULL)
             {
                 k4a_image_release(ir_image);
                 ir_image = NULL;
             }
+            */
         }
         else{
             if (depth_image != NULL)
