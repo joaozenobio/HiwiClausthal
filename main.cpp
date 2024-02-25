@@ -9,6 +9,9 @@
 #include <vector>
 #include <iomanip>
 #include <format>
+#include <cstdlib>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
@@ -18,17 +21,31 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-static void create_xy_table(const k4a_calibration_t* calibration, k4a_image_t xy_table)
+static bool create_xy_table(const k4a_calibration_t* calibration, k4a_image_t xy_table)
 {
     k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
+    if (table_data == NULL)
+    {
+        std::cerr << "Failed to get xy_table image buffer" << std::endl;
+        return false;
+    }
 
     int width = k4a_image_get_width_pixels(xy_table);
+    if (width == 0)
+    {
+        std::cerr << "Failed to get xy_table image width" << std::endl;
+        return false;
+    }
     int height = k4a_image_get_height_pixels(xy_table);
+    if (height == 0)
+    {
+        std::cerr << "Failed to get xy_table image height" << std::endl;
+        return false;
+    }
 
     k4a_float2_t p;
     k4a_float3_t ray;
     int valid;
-
     for (int y = 0, idx = 0; y < height; y++)
     {
         p.xy.y = (float)y;
@@ -36,8 +53,12 @@ static void create_xy_table(const k4a_calibration_t* calibration, k4a_image_t xy
         {
             p.xy.x = (float)x;
 
-            k4a_calibration_2d_to_3d(
-                calibration, &p, 1.f, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ray, &valid);
+            if (K4A_RESULT_SUCCEEDED != k4a_calibration_2d_to_3d(
+                calibration, &p, 1.f, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ray, &valid))
+            {
+                std::cerr << "Failed to transform 2D point to 3D" << std::endl;
+                return false;
+            }
 
             if (valid)
             {
@@ -51,19 +72,48 @@ static void create_xy_table(const k4a_calibration_t* calibration, k4a_image_t xy
             }
         }
     }
+
+    return true;
 }
 
-static void generate_point_cloud(const k4a_image_t depth_image,
+static bool generate_point_cloud(const k4a_image_t depth_image,
     const k4a_image_t xy_table,
     k4a_image_t point_cloud,
     int* point_count)
 {
     int width = k4a_image_get_width_pixels(xy_table);
+    if (width == 0)
+    {
+        std::cerr << "Failed to get xy_table image width" << std::endl;
+        return false;
+    }
     int height = k4a_image_get_height_pixels(xy_table);
+    if (height == 0)
+    {
+        std::cerr << "Failed to get xy_table image height" << std::endl;
+        return false;
+    }
 
     uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
+    if (depth_data == NULL)
+    {
+        std::cerr << "Failed to get depth image buffer" << std::endl;
+        return false;
+    }
+
     k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
+    if (xy_table_data == NULL)
+    {
+        std::cerr << "Failed to get xy_table image buffer" << std::endl;
+        return false;
+    }
+
     k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
+    if (point_cloud_data == NULL)
+    {
+        std::cerr << "Failed to get point_cloud image buffer" << std::endl;
+        return false;
+    }
 
     *point_count = 0;
     for (int i = 0; i < width * height; i++)
@@ -82,14 +132,31 @@ static void generate_point_cloud(const k4a_image_t depth_image,
             point_cloud_data[i].xyz.z = nanf("");
         }
     }
+
+    return true;
 }
 
-static void write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count)
+static bool write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count)
 {
     int width = k4a_image_get_width_pixels(point_cloud);
+    if (width == 0)
+    {
+        std::cerr << "Failed to get point_cloud image width" << std::endl;
+        return false;
+    }
     int height = k4a_image_get_height_pixels(point_cloud);
+    if (height == 0)
+    {
+        std::cerr << "Failed to get point_cloud image height" << std::endl;
+        return false;
+    }
 
     k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
+    if (point_cloud_data == NULL)
+    {
+        std::cerr << "Failed to get point_cloud image buffer" << std::endl;
+        return false;
+    }
 
     // save to the ply file
     std::ofstream ofs(file_name); // text mode first
@@ -195,65 +262,146 @@ cv::Mat k4a_get_mat(k4a_image_t& src, bool deep_copy = true)
     return get_mat(k4a_image_t(src), deep_copy);
 }
 
+// Check if the file was opened successfully
+if (!outfile.is_open()) {
+    cerr << "Error opening file: " << filename << endl;
+    return 1;
+}
+
+// Get numbers from the user (or any other source)
+int num;
+cout << "Enter numbers to save (enter -1 to quit):" << endl;
+
+while (cin >> num && num != -1) {
+    // Write the number to the file
+    outfile << num << endl;
+}
+
+// Close the file
+outfile.close();
+
+cout << "Numbers saved successfully to " << filename << endl;
+
 int main(int argc, char** argv) {
 
-    std::string input_file_name = "C:\\Users\\zenob\\Desktop\\front.mkv";
-    std::string depth_image_output_directory = "C:\\Users\\zenob\\Desktop\\depth\\";
-    std::string color_image_output_directory = "C:\\Users\\zenob\\Desktop\\color\\";
-    std::string ir_image_output_directory = "C:\\Users\\zenob\\Desktop\\ir\\";
+    std::string input_path = "C:\\Users\\zenob\\Desktop\\dataset\\task1\\person1\\front.mkv";
+    
+    std::string base_path = input_path.substr(0, input_path.find("."));
+    if (!fs::create_directories(base_path)) {
+        std::cerr << "Error creating directory: " << base_path << std::endl;
+        return 1;
+    }
+    std::string depth_path = base_path + "\\depth";
+    if (!fs::create_directories(depth_path)) {
+        std::cerr << "Error creating directory: " << depth_path << std::endl;
+        return 1;
+    }
+    std::string color_path = base_path + "\\color";
+    if (!fs::create_directories(color_path)) {
+        std::cerr << "Error creating directory: " << color_path << std::endl;
+        return 1;
+    }
+    std::string ir_path = base_path + "\\ir";
+    if (!fs::create_directories(ir_path)) {
+        std::cerr << "Error creating directory: " << ir_path << std::endl;
+        return 1;
+    }
+
+    std::string depth_timestamps_path = depth_path + "\\timestamps.txt";
+    std::ofstream depth_timestamps_file(depth_timestamps_path, std::ios::app);
+    if (!depth_timestamps_file.is_open()) {
+        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
+        return 1;
+    }
+    std::string color_timestamps_path = color_path + "\\timestamps.txt";
+    std::ofstream color_timestamps_file(color_timestamps_path, std::ios::app);
+    if (!color_timestamps_file.is_open()) {
+        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
+        return 1;
+    }
+    std::string ir_timestamps_path = ir_path + "\\timestamps.txt";
+    std::ofstream ir_timestamps_file(ir_timestamps_path, std::ios::app);
+    if (!ir_timestamps_file.is_open()) {
+        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
+        return 1;
+    }
+    std::string imu_path = base_path + "\\imu.json";
+    std::ofstream imu_file(imu_path, std::ios::app);
+    if (!imu_file.is_open()) {
+        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
+        return 1;
+    }
+
     k4a_playback_t playback = NULL;
     k4a_result_t result;
-    result = k4a_playback_open(input_file_name.c_str(), &playback);
+    result = k4a_playback_open(input_path.c_str(), &playback);
     if (result != K4A_RESULT_SUCCEEDED || playback == NULL)
     {
-        printf("Failed to open recording %s\n", input_file_name.c_str());
-        return -1;
+        std::cerr << "Failed to open recording: " << input_path << std::endl;
+        return 1;
     }
 
     k4a_calibration_t calibration;
     if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(playback, &calibration))
     {
-        printf("Failed to get calibration\n");
-        return -1;
+        std::cerr << "Failed to get calibration" << std::endl;
+        return 1;
     }
 
     k4a_transformation_t transformation = NULL;
     transformation = k4a_transformation_create(&calibration);
+    if (transformation == NULL)
+    {
+        std::cerr << "Failed to create transformation handle" << std::endl;
+        return 1;
+    }
 
     k4a_capture_t capture = NULL;
-    k4a_image_t depth_image = NULL;
-    k4a_image_t color_image = NULL;
-    k4a_image_t ir_image = NULL;
     k4a_stream_result_t stream_result;
     stream_result = k4a_playback_get_next_capture(playback, &capture);
     if (stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
     {
-        printf("Failed to fetch frame\n");
-        return -1;
+        std::cerr << "Failed to fetch frame" << std::endl;
+        return 1;
     }
+    k4a_image_t depth_image = NULL;
+    k4a_image_t color_image = NULL;
+    k4a_image_t ir_image = NULL;
     while (stream_result != K4A_STREAM_RESULT_EOF)
     {   
         depth_image = k4a_capture_get_depth_image(capture);
         if (depth_image == 0)
         {
-            printf("Failed to get depth image from capture\n");
+            std::cout << "Failed to get depth image from capture" << std::endl;
         }
 
         color_image = k4a_capture_get_color_image(capture);
         if (color_image == 0)
         {
-            printf("Failed to get color image from capture\n");
+            std::cout << "Failed to get color image from capture" << std::endl;
         }
 
         ir_image = k4a_capture_get_ir_image(capture);
         if (ir_image == 0)
         {
-            printf("Failed to get ir image from capture\n");
+            std::cout << "Failed to get ir image from capture" << std::endl;
         }
+
         if (depth_image && color_image && ir_image)
         {
             int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+            if (color_image_width_pixels == 0)
+            {
+                std::cerr << "Failed to get image width" << std::endl;
+                return 1;
+            }            
             int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+            if (color_image_height_pixels == 0)
+            {
+                std::cerr << "Failed to get image width" << std::endl;
+                return 1;
+            }
+
             k4a_image_t transformed_depth_image = NULL;
             if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
                 color_image_width_pixels,
@@ -261,34 +409,51 @@ int main(int argc, char** argv) {
                 color_image_width_pixels * (int)sizeof(uint16_t),
                 &transformed_depth_image))
             {
-                printf("Failed to create transformed depth image\n");
-                return -1;
+                std::cerr << "Failed to create transformed depth image" << std::endl;
+                return 1;
             }
             if (K4A_RESULT_SUCCEEDED !=
                 k4a_transformation_depth_image_to_color_camera(transformation, depth_image, transformed_depth_image))
             {
-                printf("Failed to compute transformed depth image\n");
-                return -1;
+                std::cerr << "Failed to compute transformed depth image" << std::endl;
+                return 1;
             }
 
             k4a_image_t xy_table = NULL;
-            k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+            if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
                 color_image_width_pixels,
                 color_image_height_pixels,
                 color_image_width_pixels * (int)sizeof(k4a_float2_t),
-                &xy_table);
-            create_xy_table(&calibration, xy_table);
+                &xy_table))
+            {
+                std::cerr << "Failed to create xy_table image" << std::endl;
+                return 1;
+            }
+            if (!create_xy_table(&calibration, xy_table))
+            {
+                std::cerr << "Failed to create xy_table" << std::endl;
+                return 1;
+            }
 
             k4a_image_t point_cloud = NULL;
-            k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+            if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
                 color_image_width_pixels,
                 color_image_height_pixels,
                 color_image_width_pixels * (int)sizeof(k4a_float3_t),
-                &point_cloud);
+                &point_cloud))
+            {
+                std::cerr << "Failed to create point_cloud image" << std::endl;
+                return 1;
+            }
             int point_count = 0;
-            generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count);
+            if (!generate_point_cloud(transformed_depth_image, xy_table, point_cloud, &point_count))
+            {
+                std::cerr << "Failed to generate point cloud" << std::endl;
+                return 1;
+            }
+
             int depth_image_timestamp = (int)k4a_image_get_device_timestamp_usec(depth_image);
-            write_point_cloud((depth_image_output_directory + std::format("{:020}", depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
+            write_point_cloud((depth_directory_path + std::format("{:020}", depth_image_timestamp) + ".ply").c_str(), point_cloud, point_count);
             if (depth_image != NULL)
             {
                 k4a_image_release(depth_image);
@@ -312,17 +477,16 @@ int main(int argc, char** argv) {
 
             int color_image_timestamp = (int)k4a_image_get_device_timestamp_usec(color_image);
             cv::Mat color_image_opencv = k4a_get_mat(color_image);
-            cv::imwrite((color_image_output_directory + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
+            cv::imwrite((color_images_path + std::to_string(color_image_timestamp) + ".png").c_str(), color_image_opencv);
             if (color_image != NULL)
             {
                 k4a_image_release(color_image);
                 color_image = NULL;
             }
-            
 
             int ir_image_timestamp = (int)k4a_image_get_device_timestamp_usec(ir_image);
             cv::Mat ir_image_opencv = k4a_get_mat(ir_image);
-            cv::imwrite((ir_image_output_directory + std::format("{:020}", ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
+            cv::imwrite((ir_images_path + std::format("{:020}", ir_image_timestamp) + ".png").c_str(), ir_image_opencv);
             if (ir_image != NULL)
             {
                 k4a_image_release(ir_image);
@@ -371,7 +535,7 @@ int main(int argc, char** argv) {
         k4a_playback_close(playback);
     }
 
-    std::cout << input_file_name + " concluded.";
+    std::cout << input_file + " concluded.";
 
     return 0;
 }
