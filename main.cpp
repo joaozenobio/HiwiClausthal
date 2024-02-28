@@ -3,6 +3,7 @@
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/green_screen
 // https://gist.github.com/UnaNancyOwen/9f16ce7ea4c2673fe08b4ce4804fc209
 // https://github.com/nlohmann/json
+// https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188
 
 #include <iostream>
 #include <fstream>
@@ -18,8 +19,10 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
+using json = nlohmann::json;
 
 static bool create_xy_table(const k4a_calibration_t* calibration, k4a_image_t xy_table)
 {
@@ -254,6 +257,11 @@ static cv::Mat get_mat(k4a_image_t src, bool deep_copy = true)
         mat = cv::Mat(height, width, CV_8UC1, k4a_image_get_buffer(src)).clone();
         break;
     }
+    case k4a_image_format_t::K4A_IMAGE_FORMAT_CUSTOM16:
+    {
+        mat = cv::Mat(height, width, CV_16UC1, k4a_image_get_buffer(src)).clone();
+        break;
+    }
     case k4a_image_format_t::K4A_IMAGE_FORMAT_CUSTOM:
     {
         // NOTE: This is opencv_viz module format (cv::viz::WCloud).
@@ -305,6 +313,19 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    std::string depth_point_cloud_path = depth_path + "\\point_clouds";
+    if (!fs::create_directories(depth_point_cloud_path)) {
+        std::cerr << "Error creating directory: " << depth_point_cloud_path << std::endl;
+        return 1;
+    }
+
+    std::string depth_timestamps_path = depth_path + "\\timestamps.txt";
+    std::ofstream depth_timestamps_file(depth_timestamps_path, std::ios::app);
+    if (!depth_timestamps_file.is_open()) {
+        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
+        return 1;
+    }
+
     std::string color_path = base_path + "\\color";
     if (!fs::create_directories(color_path)) {
         std::cerr << "Error creating directory: " << color_path << std::endl;
@@ -314,6 +335,13 @@ int main(int argc, char** argv) {
     std::string color_images_path = color_path + "\\images";
     if (!fs::create_directories(color_images_path)) {
         std::cerr << "Error creating directory: " << color_images_path << std::endl;
+        return 1;
+    }
+
+    std::string color_timestamps_path = color_path + "\\timestamps.txt";
+    std::ofstream color_timestamps_file(color_timestamps_path, std::ios::app);
+    if (!color_timestamps_file.is_open()) {
+        std::cerr << "Error opening file: " << color_timestamps_path << std::endl;
         return 1;
     }
 
@@ -329,24 +357,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::string depth_timestamps_path = depth_path + "\\timestamps.txt";
-    std::ofstream depth_timestamps_file(depth_timestamps_path, std::ios::app);
-    if (!depth_timestamps_file.is_open()) {
-        std::cerr << "Error opening file: " << depth_timestamps_path << std::endl;
-        return 1;
-    }
-    std::string color_timestamps_path = color_path + "\\timestamps.txt";
-    std::ofstream color_timestamps_file(color_timestamps_path, std::ios::app);
-    if (!color_timestamps_file.is_open()) {
-        std::cerr << "Error opening file: " << color_timestamps_path << std::endl;
-        return 1;
-    }
     std::string ir_timestamps_path = ir_path + "\\timestamps.txt";
     std::ofstream ir_timestamps_file(ir_timestamps_path, std::ios::app);
     if (!ir_timestamps_file.is_open()) {
         std::cerr << "Error opening file: " << ir_timestamps_path << std::endl;
         return 1;
     }
+
     std::string imu_path = base_path + "\\imu.json";
     std::ofstream imu_file(imu_path, std::ios::app);
     if (!imu_file.is_open()) {
@@ -379,9 +396,9 @@ int main(int argc, char** argv) {
     }
 
     k4a_capture_t capture = NULL;
-    k4a_stream_result_t stream_result;
-    stream_result = k4a_playback_get_next_capture(playback, &capture);
-    if (stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
+    k4a_stream_result_t capture_stream_result;
+    capture_stream_result = k4a_playback_get_next_capture(playback, &capture);
+    if (capture_stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
     {
         std::cerr << "Failed to fetch frame" << std::endl;
         return 1;
@@ -389,7 +406,7 @@ int main(int argc, char** argv) {
     k4a_image_t depth_image = NULL;
     k4a_image_t color_image = NULL;
     k4a_image_t ir_image = NULL;
-    while (stream_result != K4A_STREAM_RESULT_EOF)
+    while (capture_stream_result != K4A_STREAM_RESULT_EOF)
     {   
         depth_image = k4a_capture_get_depth_image(capture);
         if (depth_image == 0)
@@ -443,6 +460,18 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
+            cv::Mat depth_image_opencv = k4a_get_mat(transformed_depth_image);
+            if (depth_image_opencv.empty()) {
+                std::cerr << "Failed to get depth image cv::Mat" << std::endl;
+                return 1;
+            }
+
+            int depth_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(depth_image);
+
+            std::string depth_image_timestamp = std::format("{:020}", depth_image_timestamp_int);
+
+            cv::imwrite((depth_images_path + "\\" + depth_image_timestamp + ".jpg").c_str(), depth_image_opencv);
+
             k4a_image_t xy_table = NULL;
             if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
                 color_image_width_pixels,
@@ -475,20 +504,11 @@ int main(int argc, char** argv) {
                 std::cerr << "Failed to generate point cloud" << std::endl;
                 return 1;
             }
-
-            int depth_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(depth_image);
-
-            std::string depth_image_timestamp = std::format("{:020}", depth_image_timestamp_int);
             
-            write_point_cloud((depth_images_path + "\\" + depth_image_timestamp + ".ply").c_str(), point_cloud, point_count);
+            write_point_cloud((depth_point_cloud_path + "\\" + depth_image_timestamp + ".ply").c_str(), point_cloud, point_count);
 
             depth_timestamps_file << depth_image_timestamp << std::endl;
 
-            if (depth_image != NULL)
-            {
-                k4a_image_release(depth_image);
-                depth_image = NULL;
-            }
             if (transformed_depth_image != NULL)
             {
                 k4a_image_release(transformed_depth_image);
@@ -515,77 +535,113 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            cv::imwrite((color_images_path + "\\" + color_image_timestamp + ".png").c_str(), color_image_opencv);
+            cv::imwrite((color_images_path + "\\" + color_image_timestamp + ".jpg").c_str(), color_image_opencv);
             
             color_timestamps_file << color_image_timestamp << std::endl;
-            
-            if (color_image != NULL)
+
+            k4a_image_t custom_ir_image = NULL;
+            int ir_image_width_pixels = k4a_image_get_width_pixels(ir_image);
+            int ir_image_height_pixels = k4a_image_get_height_pixels(ir_image);
+            int ir_image_stride_bytes = k4a_image_get_stride_bytes(ir_image);
+            uint8_t* ir_image_buffer = k4a_image_get_buffer(ir_image);
+            if (K4A_RESULT_SUCCEEDED !=
+                k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_CUSTOM16,
+                    ir_image_width_pixels,
+                    ir_image_height_pixels,
+                    ir_image_width_pixels * (int)sizeof(uint16_t),
+                    ir_image_buffer,
+                    ir_image_height_pixels * ir_image_stride_bytes,
+                    [](void* _buffer, void* context) {
+                        delete[](uint8_t*) _buffer;
+                        (void)context;
+                    },
+                    NULL,
+                    &custom_ir_image))
             {
-                k4a_image_release(color_image);
-                color_image = NULL;
+                std::cerr << "Failed to create custom ir image" << std::endl;
+                return 1;
+            }
+
+            k4a_image_t transformed_ir_image = NULL;
+            if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM16,
+                color_image_width_pixels,
+                color_image_height_pixels,
+                color_image_width_pixels * (int)sizeof(uint16_t),
+                &transformed_ir_image))
+            {
+                std::cerr << "Failed to create transformed ir image" << std::endl;
+                return 1;
+            }
+
+            k4a_image_t transformed_depth_image_reference = NULL;
+            if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+                color_image_width_pixels,
+                color_image_height_pixels,
+                color_image_width_pixels * (int)sizeof(uint16_t),
+                &transformed_depth_image_reference))
+            {
+                std::cerr << "Failed to create transformed ir image" << std::endl;
+                return 1;
+            }
+
+            if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_color_camera_custom(
+                transformation,
+                depth_image, 
+                custom_ir_image,
+                transformed_depth_image_reference,
+                transformed_ir_image, 
+                K4A_TRANSFORMATION_INTERPOLATION_TYPE_NEAREST, 
+                0))
+            {
+                std::cerr << "Failed to compute transformed ir image" << std::endl;
+                return 1;
             }
 
             int ir_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(ir_image);
 
             std::string ir_image_timestamp = std::format("{:020}", ir_image_timestamp_int);
             
-            cv::Mat ir_image_opencv = k4a_get_mat(ir_image);
+            cv::Mat ir_image_opencv = k4a_get_mat(transformed_ir_image);
             if (ir_image_opencv.empty()) {
                 std::cerr << "Failed to get ir image cv::Mat" << std::endl;
                 return 1;
             }
+
+            ir_image_opencv *= 257;
             
-            cv::imwrite((ir_images_path + "\\" + ir_image_timestamp + ".png").c_str(), ir_image_opencv);
+            cv::imwrite((ir_images_path + "\\" + ir_image_timestamp + ".jpg").c_str(), ir_image_opencv);
 
             ir_timestamps_file << color_image_timestamp << std::endl;
-            
-            if (ir_image != NULL)
+
+            if (transformed_ir_image != NULL)
             {
-                k4a_image_release(ir_image);
-                ir_image = NULL;
+                k4a_image_release(transformed_ir_image);
+                transformed_ir_image = NULL;
             }
 
-            int mean_timestamp = (depth_image_timestamp_int + color_image_timestamp_int + ir_image_timestamp_int) / 3;
-
-            if (K4A_RESULT_SUCCEEDED != k4a_playback_seek_timestamp(playback, mean_timestamp, K4A_PLAYBACK_SEEK_BEGIN))
+            if (transformed_depth_image_reference != NULL)
             {
-                std::cerr << "Failed to seek playback timestamp" << std::endl;
-                return 1;
-            }
-
-            k4a_imu_sample_t imu_sample;
-            if(K4A_RESULT_SUCCEEDED != k4a_playback_get_previous_imu_sample(playback, &imu_sample))
-            {
-                std::cerr << "Failed to get IMU sample" << std::endl;
-                return 1;
-            }
-
-            // Seek bigger timestamp to get next capture correctly (biggest timestamp + 1)
-            int next_timestamp = std::max({ depth_image_timestamp_int, color_image_timestamp_int, ir_image_timestamp_int }) + 1;
-            
-            if (K4A_RESULT_SUCCEEDED != k4a_playback_seek_timestamp(playback, next_timestamp, K4A_PLAYBACK_SEEK_BEGIN)) {
-                std::cerr << "Failed to seek playback timestamp" << std::endl;
-                return 1;
+                k4a_image_release(transformed_depth_image_reference);
+                transformed_depth_image_reference = NULL;
             }
         }
-        else{
-            if (depth_image != NULL)
-            {
-                k4a_image_release(depth_image);
-                depth_image = NULL;
-            }
 
-            if (color_image != NULL)
-            {
-                k4a_image_release(color_image);
-                color_image = NULL;
-            }
+        if (depth_image != NULL)
+        {
+            k4a_image_release(depth_image);
+            depth_image = NULL;
+        }
 
-            if (ir_image != NULL)
-            {
-                k4a_image_release(ir_image);
-                ir_image = NULL;
-            }
+        if (color_image != NULL)
+        {
+            k4a_image_release(color_image);
+            color_image = NULL;
+        }
+
+        if (ir_image != NULL)
+        {
+            k4a_image_release(ir_image);
+            ir_image = NULL;
         }
 
         if (capture != NULL)
@@ -594,13 +650,54 @@ int main(int argc, char** argv) {
             capture = NULL;
         }
 
-        stream_result = k4a_playback_get_next_capture(playback, &capture);
-        if (stream_result == K4A_STREAM_RESULT_FAILED)
+        capture_stream_result = k4a_playback_get_next_capture(playback, &capture);
+        if (capture_stream_result == K4A_STREAM_RESULT_FAILED)
         {
             printf("Failed to fetch frame\n");
             return 1;
         }
     }
+
+    k4a_imu_sample_t imu_sample;
+    k4a_stream_result_t imu_stream_result = k4a_playback_get_next_imu_sample(playback, &imu_sample);
+    if (imu_stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
+    {
+        std::cerr << "Failed to fetch imu sample" << std::endl;
+        return 1;
+    }
+
+    auto imu_data_array = json::array();
+
+    while (imu_stream_result != K4A_STREAM_RESULT_EOF)
+    {
+        json imu_json = json::object();
+        imu_json["data"] = json::object();
+        imu_json["data"]["acc_sample"] = json::object();
+        imu_json["data"]["acc_sample"]["x"] = imu_sample.acc_sample.xyz.x;
+        imu_json["data"]["acc_sample"]["y"] = imu_sample.acc_sample.xyz.y;
+        imu_json["data"]["acc_sample"]["z"] = imu_sample.acc_sample.xyz.z;
+        imu_json["data"]["acc_timestamp_usec"] = imu_sample.acc_timestamp_usec;
+        imu_json["data"]["gyro_sample"] = json::object();
+        imu_json["data"]["gyro_sample"]["x"] = imu_sample.gyro_sample.xyz.x;
+        imu_json["data"]["gyro_sample"]["y"] = imu_sample.gyro_sample.xyz.y;
+        imu_json["data"]["gyro_sample"]["z"] = imu_sample.gyro_sample.xyz.z;
+        imu_json["data"]["gyro_timestamp_usec"] = imu_sample.gyro_timestamp_usec;
+
+        imu_data_array.push_back(imu_json);
+
+        imu_stream_result = k4a_playback_get_next_imu_sample(playback, &imu_sample);
+        if (imu_stream_result == K4A_STREAM_RESULT_FAILED || capture == NULL)
+        {
+            std::cerr << "Failed to fetch imu sample" << std::endl;
+            return 1;
+        }
+    }
+
+    json imu_data = json::object();
+    imu_data["data"] = imu_data_array;
+
+    imu_file << imu_data.dump(4) << std::endl;
+
     if (capture != NULL)
     {
         k4a_capture_release(capture);
