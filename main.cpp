@@ -313,6 +313,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    std::string depth_raw_matrices_path = depth_path + "\\raw_matrices";
+    if (!fs::create_directories(depth_raw_matrices_path)) {
+        std::cerr << "Error creating directory: " << depth_raw_matrices_path << std::endl;
+        return 1;
+    }
+
     std::string depth_point_cloud_path = depth_path + "\\point_clouds";
     if (!fs::create_directories(depth_point_cloud_path)) {
         std::cerr << "Error creating directory: " << depth_point_cloud_path << std::endl;
@@ -354,6 +360,12 @@ int main(int argc, char** argv) {
     std::string ir_images_path = ir_path + "\\images";
     if (!fs::create_directories(ir_images_path)) {
         std::cerr << "Error creating directory: " << ir_images_path << std::endl;
+        return 1;
+    }
+
+    std::string ir_raw_matrices_path = ir_path + "\\raw_matrices";
+    if (!fs::create_directories(ir_raw_matrices_path)) {
+        std::cerr << "Error creating directory: " << ir_raw_matrices_path << std::endl;
         return 1;
     }
 
@@ -469,6 +481,11 @@ int main(int argc, char** argv) {
             int depth_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(depth_image);
 
             std::string depth_image_timestamp = std::format("{:020}", depth_image_timestamp_int);
+
+            cv::imwrite((depth_raw_matrices_path + "\\" + depth_image_timestamp + ".jpg").c_str(), depth_image_opencv);
+
+            // 3860mm is the max range of the depth sensor with NFOV_UNBINNED
+            depth_image_opencv /= (3860.0 / 255.0);
 
             cv::imwrite((depth_images_path + "\\" + depth_image_timestamp + ".jpg").c_str(), depth_image_opencv);
 
@@ -597,17 +614,20 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            int ir_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(ir_image);
-
-            std::string ir_image_timestamp = std::format("{:020}", ir_image_timestamp_int);
-            
             cv::Mat ir_image_opencv = k4a_get_mat(transformed_ir_image);
             if (ir_image_opencv.empty()) {
                 std::cerr << "Failed to get ir image cv::Mat" << std::endl;
                 return 1;
             }
 
-            ir_image_opencv *= 257;
+            int ir_image_timestamp_int = (int)k4a_image_get_device_timestamp_usec(ir_image);
+
+            std::string ir_image_timestamp = std::format("{:020}", ir_image_timestamp_int);
+
+            cv::imwrite((ir_raw_matrices_path + "\\" + ir_image_timestamp + ".jpg").c_str(), ir_image_opencv);
+
+            // 1000 is the max range of the ir sensor
+            ir_image_opencv /= (1000.0 / 255.0);
             
             cv::imwrite((ir_images_path + "\\" + ir_image_timestamp + ".jpg").c_str(), ir_image_opencv);
 
