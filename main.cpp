@@ -423,7 +423,6 @@ int main(int argc, char** argv) {
     k4a_image_t ir_image = NULL;
     while (capture_stream_result != K4A_STREAM_RESULT_EOF)
     {   
-        break;
         depth_image = k4a_capture_get_depth_image(capture);
         if (depth_image == 0)
         {
