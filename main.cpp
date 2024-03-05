@@ -1,9 +1,12 @@
+// https://learn.microsoft.com/en-us/azure/kinect-dk/record-external-synchronized-units
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/transformation
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/fastpointcloud
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/green_screen
 // https://gist.github.com/UnaNancyOwen/9f16ce7ea4c2673fe08b4ce4804fc209
 // https://github.com/nlohmann/json
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188
+
+// k4arecorder.exe command used: k4arecorder.exe --external-sync <master|subordinate> --depth-mode NFOV_UNBINNED -e -8 -r 15 -l 120 <output_path.mkv> 
 
 #include <iostream>
 #include <fstream>
