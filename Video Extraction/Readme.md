@@ -9,7 +9,7 @@ Set up sychronization: https://learn.microsoft.com/en-us/azure/kinect-dk/multi-c
 
 Example of camera placement:
 
-<img src="https://github.com/joaozenobio/HiwiClausthal/blob/52b50694362890f05ee62358d329435e1d92a1fd/Video%20Extraction/cameras_setup.png" alt="drawing" width="500"/>
+<img src="https://github.com/joaozenobio/HiwiClausthal/blob/81904ab0b189b0e3e3af38b787d150f8f255b9bc/Video%20Extraction/camera_setup.png" alt="drawing" width="500"/>
 
 ## Software environment setup
 
@@ -32,7 +32,7 @@ External-sync parameter depends on whether the device is the master or one of th
 
 ## Extracting data from the recordings
 
-PlaybackExtraction.cpp contains the functions playbackExtraction which takes the path to a recording and creates a folder with the same name as the recording file and extract the data from it into the following tree:
+PlaybackExtraction.cpp contains the function playbackExtraction which takes the path to a recording and creates a folder with the same name as the recording file and extract the data from it into the following tree:
 
 \<recording name\> <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|\----color <br>
@@ -55,3 +55,15 @@ PlaybackExtraction.cpp contains the functions playbackExtraction which takes the
 
 - The depth sensor the sensor data is also converted to point clouds.
 
+## Extracting data online
+
+OnlineExtraction.cpp contains the function onlineExtraction which takes a duration for a new recording, an output path and the number of devices and creates a folder with the same name as the recordingExtraction function and extract the data online into the same tree as the playbackExtraction.
+
+## References
+
+https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/transformation <br>
+https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/fastpointcloud <br>
+https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/green_screen <br>
+https://gist.github.com/UnaNancyOwen/9f16ce7ea4c2673fe08b4ce4804fc209 <br>
+https://github.com/nlohmann/json <br>
+https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188 <br>
