@@ -59,7 +59,7 @@ PlaybackExtraction.cpp contains the function playbackExtraction which takes the 
 
 ## Extracting data online
 
-OnlineExtraction.cpp contains the function onlineExtraction which takes a duration for a new recording, an output path and the number of devices and creates a folder with the same name as the recordingExtraction function and extract the data online into the same tree as the playbackExtraction.
+OnlineExtraction.cpp contains the function onlineExtraction which takes a duration for a new recording, an output path and the number of devices. It creates the output directory and extract the data online into the same tree as the playbackExtraction.
 
 ## References
 
