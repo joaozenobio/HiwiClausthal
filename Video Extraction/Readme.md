@@ -9,7 +9,9 @@ Set up sychronization: https://learn.microsoft.com/en-us/azure/kinect-dk/multi-c
 
 Example of camera placement:
 
-<img src="https://github.com/joaozenobio/HiwiClausthal/blob/81904ab0b189b0e3e3af38b787d150f8f255b9bc/Video%20Extraction/camera_setup.png" alt="drawing" width="500"/>
+<img src="https://github.com/joaozenobio/HiwiClausthal/blob/cd0dc995efff87501e41aebead7184d85dce845e/Video%20Extraction/camera_setup.jpg" alt="drawing" width="500"/>
+
+Right is the master.
 
 ## Software environment setup
 
