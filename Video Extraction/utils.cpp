@@ -1,5 +1,6 @@
 #include "utils.hpp"
 
+// Print a progress bar
 void printProgress(double percentage) {
     int val = (int)(percentage * 100);
     int lpad = (int)(percentage * PBWIDTH);
@@ -8,6 +9,7 @@ void printProgress(double percentage) {
     fflush(stdout);
 }
 
+// Precomputes a lookup table by storing x- and y-scale factors for every pixel
 void create_xy_table(const k4a::calibration calibration, k4a::image xy_table)
 {
     k4a_float2_t* table_data = (k4a_float2_t*)(void*)xy_table.get_buffer();
@@ -42,6 +44,9 @@ void create_xy_table(const k4a::calibration calibration, k4a::image xy_table)
     }
 }
 
+// 3d X-coordinate of a pixel in millimeters is derived by multiplying the pixel's depth value
+// with the corresponding x-scale factor. The 3d Y-coordinate is obtained by multiplying with 
+// the y-scale factor.
 bool generate_point_cloud(
     const k4a::image depth_image,
     const k4a::image xy_table,
@@ -75,6 +80,8 @@ bool generate_point_cloud(
     return true;
 }
 
+
+// Create ply file for the point cloud
 bool write_point_cloud(const char* file_name, const k4a::image point_cloud, int point_count)
 {
     uint32_t image_width = point_cloud.get_width_pixels();
@@ -115,6 +122,7 @@ bool write_point_cloud(const char* file_name, const k4a::image point_cloud, int 
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
+// Create a cv::Mat from a k4a_image_t according to its type
 cv::Mat get_mat(k4a::image image, bool deep_copy)
 {
     cv::Mat mat;

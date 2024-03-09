@@ -2,10 +2,11 @@
 
 namespace fs = std::filesystem;
 
-int online_extraction(
-    int recording_duration,
-    std::string base_path,
-    int num_devices) {
+// Extract online data from each camera sensor separately
+int onlineExtraction(
+    int recording_duration,     // Recording duration in seconds
+    std::string base_path,      // Path to save data
+    int num_devices) {          // Number of devices connected
 
     int32_t color_exposure_usec = 8000;  // somewhat reasonable default exposure time
     int32_t powerline_freq = 2;          // default to a 60 Hz powerline
@@ -101,7 +102,7 @@ int online_extraction(
     k4a_device_configuration_t main_config = get_master_config();
     k4a_device_configuration_t secondary_config = get_subordinate_config();
 
-    // Construct all the things that we'll need whether or not we are running with 1 or 2 cameras
+    // Construct all the things that we'll need whether or not we are running with 1 or more cameras
     k4a::calibration main_calibration = capturer.get_master_device().get_calibration(main_config.depth_mode,
         main_config.color_resolution);
 

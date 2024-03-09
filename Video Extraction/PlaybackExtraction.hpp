@@ -11,6 +11,6 @@
 
 #include "utils.hpp"
 
-int playback_extraction(std::string input_path);
+int playbackExtraction(std::string input_path);
 
 #endif PLAYBACKEXTRACTION_HPP

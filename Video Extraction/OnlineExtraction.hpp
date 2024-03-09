@@ -10,6 +10,6 @@
 #include "utils.hpp"
 #include "MultiDeviceCapturer.hpp"
 
-int online_extraction(int recording_duration, std::string base_path, int num_devices);
+int onlineExtraction(int recording_duration, std::string base_path, int num_devices);
 
 #endif ONLINEEXTRACTION_HPP

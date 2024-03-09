@@ -3,7 +3,8 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-int playback_extraction(std::string input_path) {
+// Extract the recording data from each camera sensor separately
+int playbackExtraction(std::string input_path) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
