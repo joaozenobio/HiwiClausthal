@@ -26,13 +26,13 @@ int onlineExtraction(
     std::string ir_timestamps_path = ir_path + "\\timestamps.txt";
     std::string imu_path = "\\imu.json";
 
+    if (!fs::create_directories(base_path)) {
+        std::cerr << "Error creating directory: " << base_path << std::endl;
+        return false;
+    }
+
     for (int i = 0; i < num_devices; i++)
     {
-        if (!fs::create_directories(base_path)) {
-            std::cerr << "Error creating directory: " << base_path << std::endl;
-            return false;
-        }
-
         std::string device_path = base_path + "\\" + std::to_string(i);
         if (!fs::create_directories(device_path)) {
             std::cerr << "Error creating directory: " << device_path << std::endl;
@@ -59,27 +59,27 @@ int onlineExtraction(
             return false;
         }
 
-        if (!fs::create_directories(color_path)) {
+        if (!fs::create_directories(device_path + color_path)) {
             std::cerr << "Error creating directory: " << color_path << std::endl;
             return false;
         }
 
-        if (!fs::create_directories(color_images_path)) {
+        if (!fs::create_directories(device_path + color_images_path)) {
             std::cerr << "Error creating directory: " << color_images_path << std::endl;
             return false;
         }
 
-        if (!fs::create_directories(ir_path)) {
+        if (!fs::create_directories(device_path + ir_path)) {
             std::cerr << "Error creating directory: " << ir_path << std::endl;
             return false;
         }
 
-        if (!fs::create_directories(ir_images_path)) {
+        if (!fs::create_directories(device_path + ir_images_path)) {
             std::cerr << "Error creating directory: " << ir_images_path << std::endl;
             return false;
         }
 
-        if (!fs::create_directories(ir_raw_matrices_path)) {
+        if (!fs::create_directories(device_path + ir_raw_matrices_path)) {
             std::cerr << "Error creating directory: " << ir_raw_matrices_path << std::endl;
             return false;
         }
@@ -90,7 +90,7 @@ int onlineExtraction(
     // on which one has sync out plugged in. Start with just { 0 }, and add
     // another if needed
     std::vector<uint32_t> device_indices;
-    for (int i = 0; i < num_devices; i++)
+    for (uint32_t i = 0; i < num_devices; i++)
     {
         device_indices.push_back(i);
     }
@@ -164,6 +164,7 @@ int onlineExtraction(
                 // 3860mm is the max range of the depth sensor with NFOV_UNBINNED
                 depth_image_opencv /= (3860.0 / 255.0);
                 cv::imwrite((device_path + depth_images_path + "\\" + depth_image_name + ".jpg").c_str(), depth_image_opencv);
+                
                 /*
                 k4a::image xy_table = k4a::image::create(
                     K4A_IMAGE_FORMAT_CUSTOM,
@@ -186,6 +187,7 @@ int onlineExtraction(
                 transformed_depth_image.reset();
                 //xy_table.reset();
                 //point_cloud.reset();
+                depth_timestamps_file.close();
 
                 uint32_t color_image_timestamp = color_image.get_device_timestamp().count();
                 std::string color_image_name = std::format("{:020}", color_image_timestamp);
@@ -195,6 +197,8 @@ int onlineExtraction(
                 cv::imwrite((device_path + color_images_path + "\\" + color_image_name + ".jpg").c_str(), color_image_opencv);
 
                 color_timestamps_file << color_image_timestamp << std::endl;
+                
+                color_timestamps_file.close();
 
                 int ir_image_width_pixels = ir_image.get_width_pixels();
                 int ir_image_height_pixels = ir_image.get_height_pixels();
@@ -207,10 +211,7 @@ int onlineExtraction(
                     ir_image_width_pixels * (int)sizeof(uint16_t),
                     ir_image_buffer,
                     ir_image_height_pixels * ir_image_stride_bytes,
-                    [](void* _buffer, void* context) {
-                        delete[](uint8_t*) _buffer;
-                        (void)context;
-                    },
+                    NULL, // Memory leak?
                     NULL);
 
                 k4a::image transformed_ir_image = k4a::image::create(
@@ -248,6 +249,7 @@ int onlineExtraction(
 
                 transformed_ir_image.reset();
                 transformed_depth_image_reference.reset();
+                ir_timestamps_file.close();
             }
             depth_image.reset();
             color_image.reset();

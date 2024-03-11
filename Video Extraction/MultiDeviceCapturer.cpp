@@ -25,7 +25,7 @@ MultiDeviceCapturer::MultiDeviceCapturer(const std::vector<uint32_t>& device_ind
             powerline_freq);
         // We treat the first device found with a sync out cable attached as the master. If it's not supposed to be,
         // unplug the cable from it. Also, if there's only one device, just use it
-        if ((next_device.is_sync_out_connected() && !master_found) || device_indices.size() == 1)
+        if ((next_device.is_sync_out_connected() && !next_device.is_sync_in_connected() && !master_found) || device_indices.size() == 1)
         {
             master_device = std::move(next_device);
             master_found = true;
