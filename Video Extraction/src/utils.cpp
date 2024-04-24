@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include "../include/utils.hpp"
 
 // Print a progress bar
 void printProgress(double percentage) {

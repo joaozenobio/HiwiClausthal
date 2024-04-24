@@ -1,4 +1,4 @@
-#include "MultiDeviceCapturer.hpp"
+#include "../include/MultiDeviceCapturer.hpp"
 
 
 // Set up all the devices. Note that the index order isn't necessarily preserved, because we might swap with master

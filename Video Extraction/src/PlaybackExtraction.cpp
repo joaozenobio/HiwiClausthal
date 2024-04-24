@@ -1,4 +1,4 @@
-#include "PlaybackExtraction.hpp"
+#include "../include/PlaybackExtraction.hpp"
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
