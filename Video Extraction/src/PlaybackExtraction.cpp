@@ -18,6 +18,9 @@ int playbackExtraction(std::string input_path) {
     std::string color_images_path = color_path + "\\images";
     std::string color_timestamps_path = color_path + "\\timestamps.txt";
     std::string ir_path = base_path + "\\ir";
+    std::string ir_images_path = ir_path + "\\images";
+    std::string ir_raw_matrices_path = ir_path + "\\raw_matrices";
+    std::string ir_timestamps_path = ir_path + "\\timestamps.txt";
     std::string imu_path = base_path + "\\imu.json";
 
     if (!fs::create_directories(base_path)) {
@@ -72,19 +75,16 @@ int playbackExtraction(std::string input_path) {
         return 1;
     }
 
-    std::string ir_images_path = ir_path + "\\images";
     if (!fs::create_directories(ir_images_path)) {
         std::cerr << "Error creating directory: " << ir_images_path << std::endl;
         return 1;
     }
 
-    std::string ir_raw_matrices_path = ir_path + "\\raw_matrices";
     if (!fs::create_directories(ir_raw_matrices_path)) {
         std::cerr << "Error creating directory: " << ir_raw_matrices_path << std::endl;
         return 1;
     }
-
-    std::string ir_timestamps_path = ir_path + "\\timestamps.txt";
+    
     std::ofstream ir_timestamps_file(ir_timestamps_path, std::ios::app);
     if (!ir_timestamps_file.is_open()) {
         std::cerr << "Error opening file: " << ir_timestamps_path << std::endl;
@@ -214,7 +214,7 @@ int playbackExtraction(std::string input_path) {
             ir_image_opencv /= (1000.0 / 255.0);
             cv::imwrite((ir_images_path + "\\" + ir_image_name + ".jpg").c_str(), ir_image_opencv);
 
-            ir_timestamps_file << color_image_timestamp << std::endl;
+            ir_timestamps_file << ir_image_timestamp << std::endl;
 
             custom_ir_image.reset();
             transformed_ir_image.reset();
