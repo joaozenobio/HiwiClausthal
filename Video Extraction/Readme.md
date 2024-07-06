@@ -79,4 +79,23 @@ https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/fastp
 https://github.com/microsoft/Azure-Kinect-Sensor-SDK/tree/develop/examples/green_screen <br>
 https://gist.github.com/UnaNancyOwen/9f16ce7ea4c2673fe08b4ce4804fc209 <br>
 https://github.com/nlohmann/json <br>
-https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188 <br>
+https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188 <be>
+
+#Development
+
+## Python wrapper
+
+- [ ] k4a::playback
+  - [ ] k4a::playback::open
+  - [ ] k4a::playback.get_recording_length().count()
+  - [ ] k4a::playback.get_next_capture
+- [ ] k4a::calibration
+  - [ ] k4a::playback.get_calibration
+- [ ] k4a::transformation
+- [ ] k4a::capture
+  - [ ] k4a::capture.get_depth_image
+  - [ ] k4a::capture.get_color_image()
+  - [ ] k4a::capture.get_ir_image
+- [ ] k4a_image_t
+  - [ ] is_valid() 
+- [ ] k4a::image
