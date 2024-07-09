@@ -83,19 +83,41 @@ https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/1188 <be>
 
 # Development
 
-## Python wrapper
+## Python API
 
 - [ ] k4a::playback
-  - [ ] k4a::playback::open
-  - [ ] k4a::playback.get_recording_length().count()
-  - [ ] k4a::playback.get_next_capture
+  - [ ] get_calibration()
+  - [ ] open()
+  - [ ] get_recording_length().count()
+  - [ ] get_next_capture()
+  - [ ] get_next_imu_sample()
 - [ ] k4a::calibration
-  - [ ] k4a::playback.get_calibration
-- [ ] k4a::transformation
+  - [ ] convert_2d_to_3d
+- [ ] k4a::transformation(k4a::calibration)
+  - [ ] depth_image_to_color_camera()
 - [ ] k4a::capture
-  - [ ] k4a::capture.get_depth_image
-  - [ ] k4a::capture.get_color_image()
-  - [ ] k4a::capture.get_ir_image
+  - [ ] get_depth_image()
+  - [ ] get_color_image()
+  - [ ] get_ir_image()
 - [ ] k4a_image_t
   - [ ] is_valid() 
 - [ ] k4a::image
+  - [ ] get_width_pixels()
+  - [ ] get_height_pixels()
+  - [ ] get_stride_bytes()
+  - [ ] get_buffer()
+  - [ ] create()
+  - [ ] create_from_buffer()
+  - [ ] depth_image_to_color_camera_custom()
+  - [ ] get_device_timestamp()
+    - [ ] count()
+- [ ] k4a_imu_sample_t
+- [ ] k4a::device
+  - [ ] open()
+  - [ ] set_color_control()
+  - [ ] is_sync_out_connected()
+  - [ ] start_cameras
+- [ ] k4a_device_configuration_t
+- [ ] k4a_float2_t
+- [ ] k4a_float3_t
+- [ ] k4a_image_format_t
