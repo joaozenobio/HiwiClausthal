@@ -8,5 +8,4 @@ Implements the neural 6Drepnet neural network, found in https://github.com/thohe
 
 Implements an automatation code to recompress and reorganize the data recorded from the Kinect KD devices.
 
-TODO: fix point cloud large files issue.
-      Check for probable memory leaks.
+TODO: support for point cloud.
